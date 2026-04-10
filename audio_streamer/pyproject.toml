@@ -1,17 +1,23 @@
 [project]
-name = "whisper"
+name = "audio-streamer"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "httpx>=0.28.1",
     "numpy>=2.4.4",
     "packaging>=26.0",
-    "scipy>=1.17.1",
-    "sounddevice>=0.5.5",
-    "soundfile>=0.13.1",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
     "torch>=2.11.0",
     "torchaudio>=2.11.0",
-    "torchcodec>=0.11.0",
-    "vad>=1.0.2",
 ]
+
+[dependency-groups]
+dev = [
+    "my-dev-utils",
+]
+
+[tool.uv.sources]
+my-dev-utils = { path = "../dev", editable = true }

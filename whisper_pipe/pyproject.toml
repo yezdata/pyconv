@@ -1,0 +1,25 @@
+[project]
+name = "whisper_pipe"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.135.3",
+    "faster-whisper>=1.2.1",
+    "loguru>=0.7.3",
+    "numpy>=2.4.4",
+    "pyannote-audio>=4.0.4",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.2",
+    "torch>=2.11.0",
+    "uvicorn>=0.44.0",
+]
+
+[dependency-groups]
+dev = [
+    "my-dev-utils",
+]
+
+[tool.uv.sources]
+my-dev-utils = { path = "../dev", editable = true }
