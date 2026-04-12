@@ -69,7 +69,6 @@ class Transcriber:
 
     def speech_to_text(self, chunk: AudioChunk) -> TranscribedChunk | None:
         options = dict(
-            language="en",
             # beam_size=5,
             word_timestamps=True,
             # language_detection_segments=1,
