@@ -12,6 +12,7 @@ if not REDIS_URL:
     logger.critical("REDIS_URL is not set in environment variables")
     sys.exit(1)
 REDIS_LIST_NAME = os.getenv("REDIS_LIST_NAME", "transcribed_chunks")
+REDIS_MAX_LEN = int(os.getenv("REDIS_MAX_LEN", "100"))
 
 HF_HOME = os.getenv("HF_HOME", "../.models_cache")
 

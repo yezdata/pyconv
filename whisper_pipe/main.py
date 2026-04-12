@@ -8,7 +8,7 @@ import redis.asyncio as redis
 
 from services.transcriber import Transcriber
 from services.models import AudioChunk
-from config import REDIS_URL, LOG_LEVEL, REDIS_LIST_NAME, HF_HOME, LOG_PATH, setup_logging
+from config import REDIS_URL, LOG_LEVEL, REDIS_LIST_NAME, REDIS_MAX_LEN, HF_HOME, LOG_PATH, setup_logging
 
 
 setup_logging()
@@ -21,29 +21,7 @@ async def lifespan(app: FastAPI):
     redis_client = redis.from_url(REDIS_URL, decode_responses=True)
     audio_queue = asyncio.Queue(maxsize=150)
 
-    app.state.redis_client = redis_client
-    app.state.audio_queue = audio_queue
 
-    worker_task = asyncio.create_task(transcription_worker(audio_queue, redis_client))
-
-    yield
-
-    # --- SHUTDOWN ---
-    logger.info("Shutting down...")
-    worker_task.cancel()
-    try:
-        await worker_task
-    except asyncio.CancelledError:
-        logger.info("Worker task cancelled successfully")
-    await redis_client.aclose()
-
-
-app = FastAPI(lifespan=lifespan)
-
-
-async def transcription_worker(
-    audio_queue: asyncio.Queue, redis_client: redis.Redis
-) -> None:
     try:
         transcriber = Transcriber(
             diarization=False,
@@ -53,10 +31,34 @@ async def transcription_worker(
             max_context_len=50,
             download_root=HF_HOME,
         )
-    except Exception:
+    except Exception as e:
         logger.exception(f"FATAL: Transcriber failed to initialize")
-        return
+        raise RuntimeError("Application startup failed: Transcriber could not be loaded") from e
 
+
+    app.state.redis_client = redis_client
+    app.state.audio_queue = audio_queue
+
+    app.state.worker_task = asyncio.create_task(transcription_worker(audio_queue, redis_client, transcriber))
+
+    yield
+
+    # --- SHUTDOWN ---
+    logger.info("Shutting down...")
+    app.state.worker_task.cancel()
+    try:
+        await app.state.worker_task
+    except asyncio.CancelledError:
+        logger.info("Worker task cancelled successfully")
+    await redis_client.aclose()
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+async def transcription_worker(
+    audio_queue: asyncio.Queue, redis_client: redis.Redis, transcriber: Transcriber
+) -> None:
     loop = asyncio.get_running_loop()
 
     while True:
@@ -75,7 +77,7 @@ async def transcription_worker(
                 async with aiofiles.open(LOG_PATH, "a", encoding="utf-8") as f:
                     await f.write(data + "\n")
 
-                while await redis_client.llen(REDIS_LIST_NAME) >= 100:
+                while await redis_client.llen(REDIS_LIST_NAME) >= REDIS_MAX_LEN:
                     logger.warning(
                         "Redis queue is full, waiting for consumer to catch up..."
                     )
@@ -105,11 +107,15 @@ async def ingest(chunk: AudioChunk, request: Request):
 async def health_check(request: Request):
     r = request.app.state.redis_client
     q = request.app.state.audio_queue
+    w = request.app.state.worker_task
+
+    worker_ok = not w.done()
 
     try:
         redis_len = await r.llen(REDIS_LIST_NAME)
         return {
-            "status": "ok",
+            "status": "ok" if worker_ok else "error",
+            "worker_alive": worker_ok,
             "internal_asyncio_queue_size": q.qsize(),
             "redis_queue_size": redis_len,
             "redis_connected": await r.ping(timeout=1),

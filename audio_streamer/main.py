@@ -27,7 +27,7 @@ async def sender_worker(queue: asyncio.Queue, client: httpx.AsyncClient):
             queue.task_done()
 
 
-async def main(audio_file: str):
+async def main(audio_file: str, session_id: str):
     audio_cfg = AudioConfig(
         target_sample_rate=16000,
         load_chunk_sec=0.032,
@@ -52,7 +52,7 @@ async def main(audio_file: str):
         sender_task = asyncio.create_task(sender_worker(queue, client))
 
         async for audio_chunk in get_speech_segments(
-            audio_gen, vad_iterator, audio_cfg
+            audio_gen, vad_iterator, session_id, audio_cfg
         ):
             async with aiofiles.open(LOG_PATH, "a", encoding="utf-8") as f:
                 await f.write(audio_chunk.model_dump_json() + "\n")
@@ -64,4 +64,4 @@ async def main(audio_file: str):
 
 
 if __name__ == "__main__":
-    asyncio.run(main("data/private_02.mp3"))
+    asyncio.run(main("data/private_01.wav", "manual-session-001"))

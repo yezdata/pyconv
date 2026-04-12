@@ -21,14 +21,45 @@ flowchart LR
     A -->|HTTP /ingest| B[Whisper Pipe API]
     B --> L2[(transcriptions.jsonl)]
     B -->|RPUSH| R[(Redis List)]
-    R --> C[Classifier Worker]
+    R -->|BLPOP| C[Classifier Worker]
     C --> L3[(classifications.jsonl)]
 
-    style R fill:#f9f,stroke:#333,stroke-width:2px
-    style L1 fill:#eee,stroke:#999
-    style L2 fill:#eee,stroke:#999
-    style L3 fill:#eee,stroke:#999
+    style R fill:#d455d4,stroke:#333,stroke-width:2px,color:#fff
+    style L1 fill:#555,stroke:#333,color:#fff
+    style L2 fill:#555,stroke:#333,color:#fff
+    style L3 fill:#555,stroke:#333,color:#fff
 ```
+
+
+
+
+```mermaid
+flowchart LR
+    A[Audio Streamer] --> L1[(audio_stream.jsonl)]
+    A -- "HTTP POST (Fire & Forget)" --> B
+    
+    subgraph API [Whisper Pipe API]
+        B[Ingest Handler] --> P{LLEN > Limit?}
+        P -- "Yes" --> W[Wait/Block]
+        W --> P
+        P -- "No" --> R
+        R[RPUSH]
+    end
+
+    B --> L2[(transcriptions.jsonl)]
+    R -->|Redis List| RL[(Redis List)]
+    RL -->|BLPOP| C[Classifier Worker]
+    C --> L3[(classifications.jsonl)]
+
+    style RL fill:#d455d4,stroke:#333,stroke-width:2px,color:#fff
+    style L1 fill:#555,stroke:#333,color:#fff
+    style L2 fill:#555,stroke:#333,color:#fff
+    style L3 fill:#555,stroke:#333,color:#fff
+    style W fill:#f66,stroke:#333,color:#fff
+```
+
+
+
 
 ## Modul 1: Audio Streaming Layer
 
@@ -91,7 +122,8 @@ Výsledek:
 - lepší kontinuita mezi segmenty,
 - čistší stream pro klasifikátor.
 
-### Engineering detail: práce s interpunkcí
+### Engineering detail: 
+**Práce s interpunkcí**
 
 `vad_cut` flag z modulu 1 řídí finální text cleanup:
 
@@ -99,6 +131,9 @@ Výsledek:
 - u přirozených VAD cutů (`vad_cut=true`) se ponechává.
 
 To pomáhá proti artefaktům, kdy model u uměle useknutých vět častěji halucinuje zakončení.
+
+**Kontrola llen() Redis listu**
+Pipeline nejdříve zkontroluje délku listu v redis před RPUSH (>=`REDIS_MAX_LEN`) -> pokud classifier service nestíhá, Redis se nebude přeplňovat.
 
 ### Výkon / hardware trade-off
 
@@ -213,7 +248,8 @@ Defaultně streamuje soubor `audio_streamer/data/private_01.wav` do `http://loca
 ## Známé limity aktuální verze
 
 1. Testy zatím chybí.
-3. Diarizace není dotažená do produkčního workflow.
+2. Diarizace není dotažená do produkčního workflow.
+3. Dotáhnout backpressure až k endpointu /ingest. Pokud některá část nestíhá, backpressure je sice chytře implementován a probublá až k /ingest, avšak worker následně blokuje dokud v queue není místo. -> lepší handling -> posílát error codes s "busy" status místo blokování.
 
 ## Trade-offs a rozhodnutí
 
