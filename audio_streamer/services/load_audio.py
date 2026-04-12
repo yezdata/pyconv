@@ -2,28 +2,37 @@ import asyncio
 import subprocess
 import time
 from typing import AsyncGenerator
+from loguru import logger
 
-from config import AudioConfig
+from audio_cfg import AudioConfig
 
 
-async def load_and_normalize(input_source: str, cfg: AudioConfig) -> AsyncGenerator[tuple[bytes, float], None]:
+async def load_and_normalize(
+    input_source: str, cfg: AudioConfig
+) -> AsyncGenerator[tuple[bytes, float], None]:
     command = [
-        'ffmpeg',
-        '-i', input_source,
-        '-f', 's16le',
-        '-acodec', 'pcm_s16le',
-        '-ar', str(cfg.target_sample_rate),
-        '-ac', '1',
-        '-loglevel', 'quiet',
-        '-'
+        "ffmpeg",
+        "-i",
+        input_source,
+        "-f",
+        "s16le",
+        "-acodec",
+        "pcm_s16le",
+        "-ar",
+        str(cfg.target_sample_rate),
+        "-ac",
+        "1",
+        "-loglevel",
+        "error",
+        "-",
     ]
     process = await asyncio.create_subprocess_exec(
-        *command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
+        *command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
 
-    chunk_size_bytes = int(cfg.target_sample_rate * cfg.bytes_per_sample * cfg.load_chunk_sec)
+    chunk_size_bytes = int(
+        cfg.target_sample_rate * cfg.bytes_per_sample * cfg.load_chunk_sec
+    )
 
     loop = asyncio.get_event_loop()
     chunks_loaded = 0
@@ -34,17 +43,35 @@ async def load_and_normalize(input_source: str, cfg: AudioConfig) -> AsyncGenera
     try:
         while True:
             raw_chunk = await process.stdout.read(chunk_size_bytes)
-            if not raw_chunk and len(raw_chunk) != chunk_size_bytes:
+
+            if not raw_chunk:
+                await process.wait()
                 exit_code = process.returncode
-                if exit_code is not None and exit_code != 0:
+
+                if exit_code != 0:
                     err_data = await process.stderr.read(4096)
-                    print(f"FFmpeg exited with code {exit_code}: {err_data.decode().strip()}")
+                    logger.error(
+                        f"FFmpeg exited with code {exit_code}: {err_data.decode().strip()}"
+                    )
                 break
 
-            chunks_loaded += 1
+            actual_len = len(raw_chunk)
+            if actual_len == 0:
+                break
 
-            # accurate time negating any delays in processing 
-            current_chunk_start_ts = start_stream_timestamp + (chunks_loaded * cfg.load_chunk_sec * 1000)
+            is_last = False
+            if actual_len < chunk_size_bytes:
+                padding_size = chunk_size_bytes - actual_len
+                raw_chunk += b"\x00" * padding_size
+
+                is_last = True
+
+            # accurate time negating any delays in processing
+            current_chunk_start_ts = start_stream_timestamp + (
+                chunks_loaded * cfg.load_chunk_sec * 1000
+            )
+
+            chunks_loaded += 1
 
             # simulate real-time recording
             target_time = start_process_time + (chunks_loaded * cfg.load_chunk_sec)
@@ -52,12 +79,13 @@ async def load_and_normalize(input_source: str, cfg: AudioConfig) -> AsyncGenera
             if sleep_delay > 0:
                 await asyncio.sleep(sleep_delay)
 
-            # TODO: add Sent 320000 bytes (10.0s) to jsonl logs
             yield raw_chunk, current_chunk_start_ts
 
-            
-    except Exception as e:
-        print(f"Error in load_and_normalize: {e}")
+            if is_last:
+                break
+
+    except Exception:
+        logger.exception(f"Error in load_and_normalize")
 
     finally:
         if process.returncode is None:

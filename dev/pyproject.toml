@@ -1,8 +1,0 @@
-[project]
-name = "my-dev-utils"
-version = "0.1.0"
-description = "Interní vývojářské utility"
-dependencies = []
-
-[tool.setuptools]
-packages = ["my_dev_utils"]

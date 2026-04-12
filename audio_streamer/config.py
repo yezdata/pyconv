@@ -1,15 +1,19 @@
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from loguru import logger
+import sys
+import os
 
-class AudioConfig(BaseSettings):
-    target_sample_rate: int = Field(default=16000, ge=8000, le=48000)
-    
-    load_chunk_sec: float = Field(default=0.032, description="Délka jednoho VAD chunku v sekundách")
-    max_segment_length_sec: float = 5.0
-    silence_limit_sec: float = 0.5
-    overlap_sec: float = 1.0
-    bytes_per_sample: int = 2
-    
-    session_id: str = "manual-session-001"
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="AUDIO_")
+LOG_PATH = "../.logs/audio_streamer/audio_stream.jsonl"
+TORCH_HOME = os.getenv("TORCH_HOME", "../.models_cache")
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+
+def setup_logging() -> None:
+    logger.remove()
+    logger.add(
+        sys.stdout,
+        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+        level=LOG_LEVEL,
+        enqueue=True,
+    )

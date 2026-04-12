@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "aiofiles>=25.1.0",
     "httpx>=0.28.1",
+    "loguru>=0.7.3",
     "numpy>=2.4.4",
     "packaging>=26.0",
     "pydantic>=2.12.5",
@@ -15,9 +17,4 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
-    "my-dev-utils",
-]
-
-[tool.uv.sources]
-my-dev-utils = { path = "../dev", editable = true }
+dev = []

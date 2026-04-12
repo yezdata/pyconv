@@ -28,14 +28,14 @@ PRIVATE_TOPICS = [
     "negotiating a debt settlement with a family member",
     "discussing sensitive medical test results with a spouse",
     "confessing a personal mistake to a close friend",
-    "planning a private legal strategy for a divorce"
+    "planning a private legal strategy for a divorce",
 ]
 
 TOPIC_BASED_TOPICS = [
     "troubleshooting a Kubernetes pod scheduling error",
     "reviewing Q3 EBITDA and financial compliance requirements",
     "discussing API integration documentation for a payment gateway",
-    "analyzing labor law amendments regarding remote work contracts"
+    "analyzing labor law amendments regarding remote work contracts",
 ]
 
 
@@ -46,14 +46,20 @@ def generate_data(topic, label):
     response = client.responses.create(
         model="openai/gpt-oss-20b",
         input=[
-            {"role": "system", "content": """
+            {
+                "role": "system",
+                "content": """
                             Write only raw text, don't use any tags or markdown. Write the output as structured json with ONLY speaker 1 or 2 and their text. Nothing else.
-                                          """},
+                                          """,
+            },
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Generate a detailed conversation about: {topic}."}
+            {
+                "role": "user",
+                "content": f"Generate a detailed conversation about: {topic}.",
+            },
         ],
         temperature=0.8,
-        )
+    )
 
     conversation = response.output_text
     return conversation
@@ -61,7 +67,6 @@ def generate_data(topic, label):
 
 def write_to_file(data, filename="generated_data.json"):
     if os.path.exists(filename):
-
         with open(filename, "r", encoding="utf-8") as fr:
             file_data = json.load(fr)
 
@@ -72,23 +77,28 @@ def write_to_file(data, filename="generated_data.json"):
     with open(filename, "w", encoding="utf-8") as fw:
         json.dump(file_data, fw, ensure_ascii=False, indent=2)
 
+
 if __name__ == "__main__":
     for topic in PRIVATE_TOPICS:
         conversation = generate_data(topic, "private")
-        data_entry = [{
-            "id": str(uuid.uuid4()),
-            "label": "PRIVATE_CONVERSATION",
-            "topic": topic,
-            "conversation": conversation
-        }]
+        data_entry = [
+            {
+                "id": str(uuid.uuid4()),
+                "label": "PRIVATE_CONVERSATION",
+                "topic": topic,
+                "conversation": conversation,
+            }
+        ]
         write_to_file(data_entry, "private_set.json")
-        
+
     for topic in TOPIC_BASED_TOPICS:
         conversation = generate_data(topic, "topic_based")
-        data_entry = [{
-            "id": str(uuid.uuid4()),
-            "label": "TOPIC_BASED_CONVERSATION",
-            "topic": topic,
-            "conversation": conversation
-        }]
+        data_entry = [
+            {
+                "id": str(uuid.uuid4()),
+                "label": "TOPIC_BASED_CONVERSATION",
+                "topic": topic,
+                "conversation": conversation,
+            }
+        ]
         write_to_file(data_entry, "topic_based")
