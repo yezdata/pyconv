@@ -15,23 +15,6 @@
 
 ## Architektura
 
-```mermaid
-flowchart LR
-    A[Audio Streamer] --> L1[(audio_stream.jsonl)]
-    A -->|HTTP /ingest| B[Whisper Pipe API]
-    B --> L2[(transcriptions.jsonl)]
-    B -->|RPUSH| R[(Redis List)]
-    R -->|BLPOP| C[Classifier Worker]
-    C --> L3[(classifications.jsonl)]
-
-    style R fill:#d455d4,stroke:#333,stroke-width:2px,color:#fff
-    style L1 fill:#555,stroke:#333,color:#fff
-    style L2 fill:#555,stroke:#333,color:#fff
-    style L3 fill:#555,stroke:#333,color:#fff
-```
-
-
-
 
 ```mermaid
 flowchart LR
@@ -39,7 +22,7 @@ flowchart LR
     A -- "HTTP POST (Fire & Forget)" --> B
     
     subgraph API [Whisper Pipe API]
-        B[Ingest Handler] --> P{LLEN > Limit?}
+        B[Transcription Handler] --> P{LLEN > Limit?}
         P -- "Yes" --> W[Wait/Block]
         W --> P
         P -- "No" --> R
