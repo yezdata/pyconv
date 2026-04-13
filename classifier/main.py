@@ -69,10 +69,7 @@ async def classification_worker(
                     classification_segment = ClassifiedSegment(
                         **ollama_data.model_dump(),
                         session_id=batch[-1].session_id,
-                        total_duration_s=(
-                            batch[-1].timestamp_end - batch[0].timestamp_start
-                        )
-                        / 1000,
+                        total_duration_s = sum((c.timestamp_end - c.timestamp_start) for c in batch) / 1000,
                         models_used=batch[-1].models_used
                         + [f"ollama-{OLLAMA_MODEL_NAME}"],
                     )

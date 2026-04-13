@@ -1,3 +1,5 @@
+from re import S
+
 from ollama import AsyncClient
 from loguru import logger
 from collections import deque
@@ -18,8 +20,6 @@ class OllamaClassifier:
         self.context_history.append(new_text)
 
     async def classify_text(self, text: str) -> OllamaResponse | None:
-        full_context = " ".join(self.context_history) + " " + text
-
         messages = [
             {
                 "role": "system",
@@ -60,7 +60,7 @@ class OllamaClassifier:
             },
             {
                 "role": "user",
-                "content": f"Conversation: {full_context.strip()}\n\nClassify the above conversation and provide the output in the specified JSON format.",
+                "content": f"History: {" ".join(self.context_history)}\nCurrent message to classify: {text}"
             },
         ]
 
