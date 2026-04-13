@@ -64,4 +64,4 @@ async def main(audio_file: str, session_id: str):
 
 
 if __name__ == "__main__":
-    asyncio.run(main("data/private_01.wav", "manual-session-001"))
+    asyncio.run(main("data/topic_based_01.wav", "manual-session-002"))
