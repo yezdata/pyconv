@@ -80,7 +80,7 @@ async def get_speech_segments(
 
                 yield AudioChunk(
                     chunk_id=uuid4(),
-                    session_id="manual-session-001",
+                    session_id=session_id,
                     timestamp_start=segment_start_ts,
                     timestamp_end=timestamp_end,
                     sample_rate=cfg.target_sample_rate,
