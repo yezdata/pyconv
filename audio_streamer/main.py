@@ -34,6 +34,7 @@ async def main(audio_file: str, session_id: str):
         max_segment_length_sec=3.0,
         silence_limit_sec=0.256,
         overlap_sec=0.5,
+        session_id=session_id,
     )
 
     model, utils = torch.hub.load(
@@ -52,7 +53,7 @@ async def main(audio_file: str, session_id: str):
         sender_task = asyncio.create_task(sender_worker(queue, client))
 
         async for audio_chunk in get_speech_segments(
-            audio_gen, vad_iterator, session_id, audio_cfg
+            audio_gen, vad_iterator, audio_cfg
         ):
             async with aiofiles.open(LOG_PATH, "a", encoding="utf-8") as f:
                 await f.write(audio_chunk.model_dump_json() + "\n")

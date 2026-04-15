@@ -13,7 +13,6 @@ from services.models import AudioChunk
 async def get_speech_segments(
     audio_iterator: AsyncGenerator[tuple[bytes, float], None],
     vad_iterator,
-    session_id: str,
     cfg: AudioConfig,
 ) -> AsyncGenerator[AudioChunk, None]:
     overlap_chunk_count = int(math.ceil(cfg.overlap_sec / cfg.load_chunk_sec))
@@ -52,7 +51,7 @@ async def get_speech_segments(
 
             yield AudioChunk(
                 chunk_id=uuid4(),
-                session_id=session_id,
+                session_id=cfg.session_id,
                 timestamp_start=segment_start_ts,
                 timestamp_end=timestamp_end,
                 sample_rate=cfg.target_sample_rate,
@@ -80,7 +79,7 @@ async def get_speech_segments(
 
                 yield AudioChunk(
                     chunk_id=uuid4(),
-                    session_id=session_id,
+                    session_id=cfg.session_id,
                     timestamp_start=segment_start_ts,
                     timestamp_end=timestamp_end,
                     sample_rate=cfg.target_sample_rate,
