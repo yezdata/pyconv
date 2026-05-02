@@ -1,4 +1,5 @@
 .models_cache/
+.logs/
 .env
 
 TODO.md
