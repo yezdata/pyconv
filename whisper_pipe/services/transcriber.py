@@ -13,9 +13,7 @@ from services.models import AudioChunk, TranscribedChunk
 class Transcriber:
     def __init__(
         self,
-        diarization: bool,
         whisper_model_name: str,
-        diarization_model_name: str,
         max_context_len: int,
         download_root: str | None = None,
     ):
@@ -32,40 +30,12 @@ class Transcriber:
             download_root=download_root,
         )
 
-        if diarization:
-            self.diarization_model_name = diarization_model_name
-
-            self.speaker_registry = {}
-
-            self.diarization_model = Pipeline.from_pretrained(
-                diarization_model_name,
-                # use_auth_token="YOUR HF TOKEN",
-            ).to(torch.device(self.device))
 
     def _process_audio_payload(self, base64_audio: str) -> np.ndarray:
         audio_bytes = base64.b64decode(base64_audio)
         audio_int16 = np.frombuffer(audio_bytes, dtype=np.int16)
         return audio_int16.astype(np.float32) / 32768.0
 
-    def diarize(self, audio_buffer, sample_rate):
-        # TODO threshold for cos similarity
-        # TODO improve precision for already stroed embeddings -> mean
-        diarization = self.diarization_model(audio_buffer, sample_rate=sample_rate)
-        print(diarization)
-
-        diarize_segments = []
-        diarization_list = list(diarization.itertracks(yield_label=True))
-
-        for turn, _, speaker in diarization_list:
-            diarize_segments.append(
-                {"start": turn.start, "end": turn.end, "speaker": speaker}
-            )
-        unique_speakers = {speaker for _, _, speaker in diarization_list}
-        detected_num_speakers = len(unique_speakers)
-
-        if len(self.speaker_registry) == 0:
-            # self.speaker_registry["SPEAKER_00"] =
-            return "SPEAKER_00"
 
     def speech_to_text(self, chunk: AudioChunk) -> TranscribedChunk | None:
         options = dict(
@@ -110,17 +80,12 @@ class Transcriber:
             final_words_data
         )
 
-        # OPTIONAL DIARIZATION
-        if hasattr(self, "diarization_model"):
-            diarization_result = self.diarize(audio_data, sample_rate=chunk.sample_rate)
-        else:
-            diarization_result = None
 
         result = TranscribedChunk(
             record_id=uuid4(),
             chunk_id=chunk.chunk_id,
             session_id=chunk.session_id,
-            speaker_id=diarization_result,
+            speaker_id=None,  # Placeholder, to be filled if diarization is implemented
             text=diff_text,
             language=info.language,
             timestamp_start=chunk.timestamp_start + (final_words_data[0].start * 1000),
@@ -136,11 +101,6 @@ class Transcriber:
                 for w in final_words_data
             ],
             models_used=[f"faster-whisper-{self.transcriber_model_name}"]
-            + (
-                [f"pyannote-{self.diarization_model_name}"]
-                if diarization_result
-                else []
-            ),
         )
 
         self.history_list.extend(diff_text.split())

@@ -46,55 +46,55 @@ async def classification_worker(
         host_url=OLLAMA_URL, model_name=OLLAMA_MODEL_NAME, max_context_batch_count=5
     )
 
-    while True:
-        chunk = await chunk_queue.get()
-        batch = [chunk]
-
-        while len(batch) < chunk_batch_size:
-            try:
-                batch.append(chunk_queue.get_nowait())
-            except asyncio.QueueEmpty:
-                break
-
+    async with aiofiles.open(LOG_PATH, "a", encoding="utf-8") as f:
         while True:
-            try:
-                combined_text = " ".join([c.text for c in batch])
-                logger.debug(f"Classifying window with {len(batch)} new chunks.")
+            chunk = await chunk_queue.get()
+            batch = [chunk]
 
-                ollama_data = await classifier.classify_text(combined_text)
+            while len(batch) < chunk_batch_size:
+                try:
+                    batch.append(chunk_queue.get_nowait())
+                except asyncio.QueueEmpty:
+                    break
 
-                if ollama_data:
-                    logger.info(ollama_data)
+            while True:
+                try:
+                    combined_text = " ".join([c.text for c in batch])
+                    logger.debug(f"Classifying window with {len(batch)} new chunks.")
 
-                    classification_segment = ClassifiedSegment(
-                        **ollama_data.model_dump(),
-                        session_id=batch[-1].session_id,
-                        total_duration_s = sum((c.timestamp_end - c.timestamp_start) for c in batch) / 1000,
-                        models_used=batch[-1].models_used
-                        + [f"ollama-{OLLAMA_MODEL_NAME}"],
-                    )
+                    ollama_data = await classifier.classify_text(combined_text)
 
-                    async with aiofiles.open(LOG_PATH, "a", encoding="utf-8") as f:
+                    if ollama_data:
+                        logger.info(ollama_data)
+
+                        classification_segment = ClassifiedSegment(
+                            **ollama_data.model_dump(),
+                            session_id=batch[-1].session_id,
+                            total_duration_s = sum((c.timestamp_end - c.timestamp_start) for c in batch) / 1000,
+                            models_used=batch[-1].models_used
+                            + [f"ollama-{OLLAMA_MODEL_NAME}"],
+                        )
+
                         await f.write(classification_segment.model_dump_json() + "\n")
 
-                    classifier.update_context_history(combined_text)
+                        classifier.update_context_history(combined_text)
 
-                break
+                    break
 
-            except (
-                RequestError,
-                httpx.ConnectError,
-                httpx.RemoteProtocolError,
-                ConnectionError,
-                TimeoutError,
-            ) as e:
-                logger.warning(
-                    f"Connection to Ollama failed, retrying in 5 seconds... Error: {e}"
-                )
-                await asyncio.sleep(5)
-            except Exception:
-                logger.exception(f"Fatal error occurred while classifying chunk")
-                break
+                except (
+                    RequestError,
+                    httpx.ConnectError,
+                    httpx.RemoteProtocolError,
+                    ConnectionError,
+                    TimeoutError,
+                ) as e:
+                    logger.warning(
+                        f"Connection to Ollama failed, retrying in 5 seconds... Error: {e}"
+                    )
+                    await asyncio.sleep(5)
+                except Exception:
+                    logger.exception(f"Fatal error occurred while classifying chunk")
+                    break
 
         for _ in range(len(batch)):
             chunk_queue.task_done()

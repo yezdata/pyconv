@@ -1,5 +1,3 @@
-from re import S
-
 from ollama import AsyncClient
 from loguru import logger
 from collections import deque

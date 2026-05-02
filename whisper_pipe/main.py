@@ -24,10 +24,7 @@ async def lifespan(app: FastAPI):
 
     try:
         transcriber = Transcriber(
-            diarization=False,
             whisper_model_name="large-v3-turbo",
-            # speechbrain/spkrec-ecapa-voxceleb
-            diarization_model_name="pyannote/speaker-diarization-3.1",
             max_context_len=50,
             download_root=HF_HOME,
         )
@@ -61,34 +58,34 @@ async def transcription_worker(
 ) -> None:
     loop = asyncio.get_running_loop()
 
-    while True:
-        chunk = await audio_queue.get()
+    async with aiofiles.open(LOG_PATH, "a", encoding="utf-8") as f:
+        while True:
+            chunk = await audio_queue.get()
 
-        try:
-            transcribed_chunk = await loop.run_in_executor(
-                None, transcriber.speech_to_text, chunk
-            )
+            try:
+                transcribed_chunk = await loop.run_in_executor(
+                    None, transcriber.speech_to_text, chunk
+                )
 
-            if transcribed_chunk:
-                logger.info(transcribed_chunk)
+                if transcribed_chunk:
+                    logger.info(transcribed_chunk)
 
-                data = transcribed_chunk.model_dump_json()
+                    data = transcribed_chunk.model_dump_json()
 
-                async with aiofiles.open(LOG_PATH, "a", encoding="utf-8") as f:
                     await f.write(data + "\n")
 
-                while await redis_client.llen(REDIS_LIST_NAME) >= REDIS_MAX_LEN:
-                    logger.warning(
-                        "Redis queue is full, waiting for consumer to catch up..."
-                    )
-                    await asyncio.sleep(0.5)
+                    while await redis_client.llen(REDIS_LIST_NAME) >= REDIS_MAX_LEN:
+                        logger.warning(
+                            "Redis queue is full, waiting for consumer to catch up..."
+                        )
+                        await asyncio.sleep(0.5)
 
-                await redis_client.rpush(REDIS_LIST_NAME, data)
+                    await redis_client.rpush(REDIS_LIST_NAME, data)
 
-        except Exception:
-            logger.exception("Error occurred while handling transcribed chunk")
-        finally:
-            audio_queue.task_done()
+            except Exception:
+                logger.exception("Error occurred while handling transcribed chunk")
+            finally:
+                audio_queue.task_done()
 
 
 @app.post("/ingest")

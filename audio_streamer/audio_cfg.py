@@ -13,6 +13,4 @@ class AudioConfig(BaseSettings):
     overlap_sec: float = 1.0
     bytes_per_sample: int = 2
 
-    session_id: str = "manual-session-001"
-
     model_config = SettingsConfigDict(env_file=".env", env_prefix="AUDIO_")

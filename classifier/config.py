@@ -13,6 +13,7 @@ if not REDIS_URL:
     sys.exit(1)
 REDIS_LIST_NAME = os.getenv("REDIS_LIST_NAME", "transcribed_chunks")
 
+
 OLLAMA_URL = os.getenv("OLLAMA_URL")
 if not OLLAMA_URL:
     logger.critical("OLLAMA_URL is not set in environment variables")

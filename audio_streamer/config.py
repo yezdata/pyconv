@@ -4,6 +4,7 @@ import os
 
 
 LOG_PATH = "../.logs/audio_streamer/audio_stream.jsonl"
+INGEST_URL = os.getenv("INGEST_URL", "http://localhost:8000/ingest")
 TORCH_HOME = os.getenv("TORCH_HOME", "../.models_cache")
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()

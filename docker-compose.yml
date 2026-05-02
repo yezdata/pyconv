@@ -42,6 +42,7 @@ services:
       - OLLAMA_MODEL_NAME=qwen3.5:9b-q4_K_M
     volumes:
       - ./.logs/classifier:/app/logs
+      - ./.models_cache:/app/.models_cache
     networks:
       - whisperwave_network
 
